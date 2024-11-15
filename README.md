@@ -15,12 +15,13 @@ This project predicts bank customer churn using machine learning algorithms. Use
 
 ## Technologies Used
 
-Machine Learning: XGBoost, Scikit Learn
-UI: Streamlit
-Data Visualization: Plotly
-Data Processing: Pandas, NumPy, Matplotlib, Python, Seaborn
-Backend: Flask
-Getting Started
+- **Machine Learning**: XGBoost, Scikit Learn
+- **UI**: Streamlit
+- **Data Visualization**: Plotly
+- **Data Processing**: Pandas, NumPy, Matplotlib, Python, Seaborn
+- **Backend**: Flask
+
+## Getting Started
 
 Clone the repository:
 ```bash
