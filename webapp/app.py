@@ -19,6 +19,7 @@ client = OpenAI(
 
 st.set_page_config(layout="wide")
 
+
 class Customer(ty.TypedDict):
     Age: int
     Balance: float
@@ -131,7 +132,7 @@ def generate_email(probability, input_dict, explanation, surname):
 models = utils.load_all_models()
 
 
-def make_predictions(input_df, input_dict, model_name=None):
+def make_predictions(input_df, input_dict, model_name="All"):
 
     probabilities = {
         "XGBoost": models["xgb_model"].predict_proba(input_df)[0][1],
@@ -141,10 +142,10 @@ def make_predictions(input_df, input_dict, model_name=None):
     }
 
     # display on frontend
-    if model_name:
-        avg_probability = probabilities.get(model_name)
-    else:
+    if not model_to_use or model_name == "All" :
         avg_probability = np.mean(list(probabilities.values()))
+    else:
+        avg_probability = probabilities.get(model_name)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -296,6 +297,12 @@ if selected_customer_option:
                 value=float(selected_customer["EstimatedSalary"]),
             )
 
+            # Bonus
+            model_to_use = st.selectbox(
+                "LLM to Utilize",
+                ["All", "XGBoost", "Random Forest", "K-Nearest Neightbors", "Decision Trees"],
+            )
+
     st.plotly_chart(
         ut.customer_percentile(df, selected_customer_surname), use_container_width=True
     )
@@ -311,7 +318,7 @@ if selected_customer_option:
         is_active_member,
         estimated_salary,
     )
-    avg_probability = make_predictions(input_df, input_dict)
+    avg_probability = make_predictions(input_df, input_dict, model_name=model_to_use)
 
     # openai
     explanation = explain_prediction(
