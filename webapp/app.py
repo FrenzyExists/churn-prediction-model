@@ -16,6 +16,9 @@ client = OpenAI(
 )
 
 
+
+st.set_page_config(layout="wide")
+
 class Customer(ty.TypedDict):
     Age: int
     Balance: float
@@ -159,15 +162,22 @@ def make_predictions(input_df, input_dict):
     with col1:
         fig = ut.create_gauge_chart(avg_probability)
         st.plotly_chart(fig, use_container_width=True)
-        st.write(f"The customer has a {avg_probability:.2%} probability of churning.")
+        # Centering the markdown text using HTML and CSS
+        st.markdown(
+            f"""
+            <h4 style="text-align: center;">The customer has a <span style="font-style:italic;">{avg_probability:.2%}</span> probability of churning.</h4>
+            """, 
+            unsafe_allow_html=True
+        )
+
     with col2:
         fig_probs = ut.create_model_probability_chart(probabilities)
         st.plotly_chart(fig_probs, use_container_width=True)
     
-    st.markdown("### Model Probabilities")
-    for model, prob in probabilities.items():
-        st.write(f"{model} {prob}")
-    st.write(f"Average Probability: {avg_probability}")
+    # st.markdown("### Model Probabilities")
+    # for model, prob in probabilities.items():
+    #     st.write(f"{model} {prob}")
+    # st.markdown(f"#### Average Probability: {avg_probability}" )
     return avg_probability
 
 st.title("Customer Churn Prediction App")
@@ -299,6 +309,8 @@ if selected_customer_option:
                 min_value=0.0,
                 value=float(selected_customer["EstimatedSalary"]),
             )
+            
+    st.plotly_chart(ut.customer_percentile(df, selected_customer_surname), use_container_width=True)
     input_df, input_dict = prepare_inputs(
         credit_score,
         location,
@@ -323,5 +335,4 @@ if selected_customer_option:
     st.markdown('---')
     st.subheader("Personalized Email")
     st.markdown(email)
-    
     
