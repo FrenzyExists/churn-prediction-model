@@ -1,12 +1,45 @@
 # Churn Prediction Model
 
-A project made part of the headstarter fellowship program
+A Machine Learning project as part of the Headstarter 
 
-took around 15 hours or so
+## Overview
 
-project is broken in two parts, the machine learning model and the frontend ui. The frontend is made with streamit.
+This project predicts bank customer churn using machine learning algorithms. Users can input customer details to assess the likelihood of churn and view visualizations of the predictions.
 
+## Features
 
-Some thoughts
+- Machine Learning Models: Utilizes XGBoost, Random Forest, K Nearest Neightbors and Decision Trees 
+- Interactive UI: Built with Streamlit for intuitive UI and Plotly for interative customer data input and prediction visualization.
+- Personalized Insights: Uses Llama LLMs to generates explanations for predictions as well as customized emails for customers.
+- Includes a backend that accepts raw json data as input and provides probability of customer to churn
 
-Streamit seems like a much better alternative to a library used before, dash. The downside I can think of right now is the fact that the graphs are not really that interactive compared to what Plotly offers. That and the fact that for complex applications that may require custom components and the such, using the js framework of plotly and combining that with EEl is still a better approach for maximum customizability. Streamit is still pretty good tho, it really abstract all the async calls and the things done in react. I somewhat wish that dash could do this, even with some of the UI kits available for dash it feels like a hassle to do things there than to separate the the python backend layer from the frontend UI layer altogether. Yeah, I like Streamit
+## Technologies Used
+
+Machine Learning: XGBoost, Scikit Learn
+UI: Streamlit
+Data Visualization: Plotly
+Data Processing: Pandas, NumPy, Matplotlib, Python, Seaborn
+Backend: Flask
+Getting Started
+
+Clone the repository:
+```bash
+git clone https://github.com/FrenzyExists/churn-prediction-model
+```
+
+Install required packages:
+```bash
+pip install -r requirements.txt
+```
+
+Run the app:
+
+```bash
+streamlit run webapp/app.py
+```
+
+Run the backend:
+
+```bash
+python webapp/backend/server.py
+```
