@@ -6,7 +6,8 @@ import typing as ty
 import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
-import utils as ut
+import widgets as ut
+import utils
 
 
 load_dotenv()
@@ -14,7 +15,6 @@ load_dotenv()
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1", api_key=os.environ.get("GROQ_API_KEY")
 )
-
 
 
 st.set_page_config(layout="wide")
@@ -29,19 +29,6 @@ class Customer(ty.TypedDict):
     HasCreditCard: int
     IsActiveMember: int
     NumberOfProducts: int
-
-
-def load_model(filename):
-    with open(filename, "rb") as fb:
-        return pickle.load(fb)
-
-
-def load_all_models():
-    models = os.listdir("models")
-    model_dict = {}
-    for m in models:
-        model_dict[os.path.splitext(m)[0]] = load_model("models/{}".format(m))
-    return model_dict
 
 
 # Change this so its more compatible to what one-hot encoding throws
@@ -75,6 +62,7 @@ def prepare_inputs(
     input_df = pd.DataFrame([input_dict])
     return input_df, input_dict
 
+
 def generate_email(probability, input_dict, explanation, surname):
     # Define the offers for churning customers
     churn_offers = [
@@ -87,9 +75,9 @@ def generate_email(probability, input_dict, explanation, surname):
         "Free access to financial health tools for 3 months.",
         "Exclusive 10% discount on all investment products.",
         "Waiver of service fees for the next 6 months.",
-        "Priority customer service support with dedicated assistance."
+        "Priority customer service support with dedicated assistance.",
     ]
-    
+
     # If customer is at risk of churning, send an email with offers
     if probability > 50:
         prompt = f"""You are a manager at Chase Bank. Your name is Antonia Barbera. You are responsible for ensuring customers stay with the bank and are incentivized with various offers.
@@ -130,7 +118,7 @@ def generate_email(probability, input_dict, explanation, surname):
         - Complimentary premium banking service for 6 months.
         - Invitations to special financial seminars or events.
         """
-    
+
     print("email ---->", prompt)
 
     raw_response = client.chat.completions.create(
@@ -140,24 +128,24 @@ def generate_email(probability, input_dict, explanation, surname):
     return raw_response.choices[0].message.content
 
 
-models = load_all_models()
+models = utils.load_all_models()
 
 
-def make_predictions(input_df, input_dict):
-    # xgboost = load_model("models/xgboost-voting_clf.pkl")
-    print("MODESL")
-    print(models.keys())
+def make_predictions(input_df, input_dict, model_name=None):
+
     probabilities = {
         "XGBoost": models["xgb_model"].predict_proba(input_df)[0][1],
         "Random Forest": models["rf_model"].predict_proba(input_df)[0][1],
         "K-Nearest Neightbors": models["knn_model"].predict_proba(input_df)[0][1],
         "Decision Trees": models["dt_model"].predict_proba(input_df)[0][1],
-        # 'SVM': models['svm_model'].predict_prob(input_df)[0][1]
     }
 
     # display on frontend
-    avg_probability = np.mean(list(probabilities.values()))
-    
+    if model_name:
+        avg_probability = probabilities.get(model_name)
+    else:
+        avg_probability = np.mean(list(probabilities.values()))
+
     col1, col2 = st.columns(2)
     with col1:
         fig = ut.create_gauge_chart(avg_probability)
@@ -166,19 +154,16 @@ def make_predictions(input_df, input_dict):
         st.markdown(
             f"""
             <h4 style="text-align: center;">The customer has a <span style="font-style:italic;">{avg_probability:.2%}</span> probability of churning.</h4>
-            """, 
-            unsafe_allow_html=True
+            """,
+            unsafe_allow_html=True,
         )
 
     with col2:
         fig_probs = ut.create_model_probability_chart(probabilities)
         st.plotly_chart(fig_probs, use_container_width=True)
-    
-    # st.markdown("### Model Probabilities")
-    # for model, prob in probabilities.items():
-    #     st.write(f"{model} {prob}")
-    # st.markdown(f"#### Average Probability: {avg_probability}" )
+
     return avg_probability
+
 
 st.title("Customer Churn Prediction App")
 
@@ -248,6 +233,7 @@ def explain_prediction(probability, input_dict, surname):
     print(raw_response.choices)
     return raw_response.choices[0].message.content
 
+
 # - Start your explanation with something like this: "(surnamme) may (not be at/be at) risk of churning because (explanation). Don't include the parenthesis. Don't include both explanations, only one"
 customers = [f"{row['CustomerId']} - {row['Surname']}" for _, row in df.iterrows()]
 
@@ -309,8 +295,10 @@ if selected_customer_option:
                 min_value=0.0,
                 value=float(selected_customer["EstimatedSalary"]),
             )
-            
-    st.plotly_chart(ut.customer_percentile(df, selected_customer_surname), use_container_width=True)
+
+    st.plotly_chart(
+        ut.customer_percentile(df, selected_customer_surname), use_container_width=True
+    )
     input_df, input_dict = prepare_inputs(
         credit_score,
         location,
@@ -324,15 +312,18 @@ if selected_customer_option:
         estimated_salary,
     )
     avg_probability = make_predictions(input_df, input_dict)
-    
+
     # openai
-    explanation = explain_prediction(avg_probability, input_dict, selected_customer['Surname'])
-    email = generate_email(avg_probability, input_dict, explanation, selected_customer['Surname'])
-    
-    st.markdown('---')
+    explanation = explain_prediction(
+        avg_probability, input_dict, selected_customer["Surname"]
+    )
+    email = generate_email(
+        avg_probability, input_dict, explanation, selected_customer["Surname"]
+    )
+
+    st.markdown("---")
     st.subheader("Explanation of Prediction")
     st.markdown(explanation)
-    st.markdown('---')
+    st.markdown("---")
     st.subheader("Personalized Email")
     st.markdown(email)
-    
