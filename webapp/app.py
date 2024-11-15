@@ -6,6 +6,8 @@ import typing as ty
 import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
+import utils as ut
+
 
 load_dotenv()
 
@@ -71,20 +73,60 @@ def prepare_inputs(
     return input_df, input_dict
 
 def generate_email(probability, input_dict, explanation, surname):
-    prompt = f"""You are a manager at Chase Bank. You are responsible for ensuring customers stay with the bank and are incentivized with various offers.
+    # Define the offers for churning customers
+    churn_offers = [
+        "Exclusive 15% discount on your next loan or mortgage.",
+        "Free upgrade to a premium credit card for the next 6 months.",
+        "Personalized financial planning session at no charge.",
+        "0% interest for 6 months on any new savings account balance transfers.",
+        "Access to a limited-time cashback offer on select purchases.",
+        "Special rates on personal loans with no annual fee for 12 months.",
+        "Free access to financial health tools for 3 months.",
+        "Exclusive 10% discount on all investment products.",
+        "Waiver of service fees for the next 6 months.",
+        "Priority customer service support with dedicated assistance."
+    ]
     
-    You noticed a customer named {surname} has a {round(probability) * 100, 1}% of churning.
-    
-    Here is the customer's information:
-    {input_dict}
-    
-    Here is some explanation as to why the customer might be at risk of churning:
-    {explanation}
-    
-    Generate an email to the customer based on their information asking them to stay if they are at risk of churning, or offering them incentives so that they become more loyal to the bank. 
-    
-    Make sure to list out a set of incentives to stay based on their information, in bullet points format. Don't ever mention the probability of churning, or the machine learning model to the customer
-    """
+    # If customer is at risk of churning, send an email with offers
+    if probability > 50:
+        prompt = f"""You are a manager at Chase Bank. Your name is Antonia Barbera. You are responsible for ensuring customers stay with the bank and are incentivized with various offers.
+        
+        You noticed a customer named {surname} might be at risk of churning based on the information below.
+        
+        Here is the customer's information:
+        {input_dict}
+        
+        Here is some explanation as to why the customer might be at risk of churning:
+        {explanation}
+        
+        Please write an email to {surname} offering them incentives to stay with the bank. 
+        The email should include the following offers in bullet point format:
+        {', '.join(churn_offers)}
+        
+        Make sure the tone is friendly, persuasive, and offers real value to the customer. Avoid mentioning the churn probability or the machine learning model.
+        """
+    else:
+        # For customers not at risk of churning, send a positive, engagement-focused email
+        prompt = f"""You are a manager at Chase Bank. Your name is Antonia Barbera. You are responsible for ensuring customers feel valued and appreciated.
+
+        You noticed a customer named {surname} is loyal to the bank and not at risk of churning based on the information below.
+        
+        Here is the customer's information:
+        {input_dict}
+        
+        Here is some explanation as to why the customer is considered loyal:
+        {explanation}
+        
+        Please write an email to {surname} thanking them for their loyalty and encouraging them to continue using the bank's services. 
+        Include any relevant rewards or offers to make the customer feel appreciated and valued. 
+        Avoid mentioning anything about churn or probabilities. Here are some incentives to include:
+        
+        - Exclusive access to VIP customer service.
+        - Personalized financial management advice at no cost.
+        - Reward points on every transaction for the next 3 months.
+        - Complimentary premium banking service for 6 months.
+        - Invitations to special financial seminars or events.
+        """
     
     print("email ---->", prompt)
 
@@ -93,6 +135,7 @@ def generate_email(probability, input_dict, explanation, surname):
     )
     print(raw_response.choices)
     return raw_response.choices[0].message.content
+
 
 models = load_all_models()
 
@@ -111,28 +154,37 @@ def make_predictions(input_df, input_dict):
 
     # display on frontend
     avg_probability = np.mean(list(probabilities.values()))
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = ut.create_gauge_chart(avg_probability)
+        st.plotly_chart(fig, use_container_width=True)
+        st.write(f"The customer has a {avg_probability:.2%} probability of churning.")
+    with col2:
+        fig_probs = ut.create_model_probability_chart(probabilities)
+        st.plotly_chart(fig_probs, use_container_width=True)
+    
     st.markdown("### Model Probabilities")
     for model, prob in probabilities.items():
         st.write(f"{model} {prob}")
     st.write(f"Average Probability: {avg_probability}")
     return avg_probability
 
-
 st.title("Customer Churn Prediction App")
-st.write("Hello world")
 
 df = pd.read_csv("sample-data/churn.csv")
 
 
 def explain_prediction(probability, input_dict, surname):
-    prompt = f"""You are an expert data scientist working at a bank, where you specialize in interpreting and explaining predictions of machine learning models in detail for the bank to understand.
-    
-    Your machine learning model has predicted that a customer named {surname} has a {round(probability * 100, 1)}% probability of churning, based on the information provided bellow.
-    
-    Here is the customer's information:
+    prompt = f"""
+    You are an expert data scientist working at a bank, where you specialize in interpreting and explaining predictions of machine learning models in detail for the bank to understand.
+
+    The model has predicted that a customer named {surname} has a {round(probability * 100, 1)}% probability of churning based on the provided information.
+
+    **Customer's Information:**
     {input_dict}
-    
-    Here are the machine learning model's top 10 most important features for predicting churn:
+
+    **Top 10 Most Important Features:**
                   feature  importance
     4       NumOfProducts    0.323888
     6      IsActiveMember    0.164146
@@ -147,24 +199,23 @@ def explain_prediction(probability, input_dict, surname):
     5           HasCrCard    0.031940
     2              Tenure    0.030054
     12        Gender_Male    0.000000
-    
-    {pd.set_option('display.max_columns', None)}
-    
-    Here is a summary of statistics for churned customers:
+
+    **Summary of Churned Customers Statistics:**
     {df[df['Exited'] == 1].describe()}
+
+    Please generate a customer risk assessment explanation according to these rules:
     
-    Do not mention the probability of churning or the machine learning model, or say anything like "Based on the machine learning model's prediction and the top 10 most important features". Don't say anything like "Given the customer's information, here's the explanation". Only explain the prediction.
-    
-    - If the customer has less than 40% risk of churning, generate a 3 sentence explanation of why they might not be at risk of churning
-    - If the customer has over a 40% risk of churning, generate a 3 sentence explanation of why they are at risk of churning
-    - Your explanation should be based on the customer's information, the summary statistics of churned and non-churned customers, and the feature importances provided.
-    
-    Generate your interpretation at 3 to 4 sentences long, from 2 to 3 paragraph long. Bellow is an example of how to structure the explanation, do not modify this structure. 
+    - Format the response exactly as shown below, including all headers and spacing.
+    - Do not modify the structure or skip any section. 
+    - If the customer has less than 40% risk, generate a 3-sentence explanation of why they might not be at risk.
+    - If the customer has over a 40% risk, generate a 3-sentence explanation of why they are at risk.
+    - Make the explanation 3-4 sentences in 2-3 paragraphs, based on customer data, churn statistics, and feature importances.
+
+    **Template Format** (strictly follow this structure and formatting):
     
     **Customer Risk Assessment:** {surname}
     
-    
-    **Assessment:** 23% risk of churning.
+    **Assessment:** {round(probability * 100, 1)}% risk of churning.
     
     
     Hargrave's low credit score and relatively high age compared to other churned customers suggest that he is at a moderate risk of churning. However, his tenure and balance are relatively low, which could indicate that he is not yet deeply invested in the bank's services. Overall, it appears that Hargrave is at risk of churning due to a combination of factors, including his demographics and financial situation.
